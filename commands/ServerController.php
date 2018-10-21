@@ -9,7 +9,7 @@ class ServerController extends Controller
     public function actionStart($port = null)
     {
 
-        $port = 8081;
+        $port = 9911;
         $server = new BasicMultiRoomServer();
 
         BasicMultiRoomServer::run($server, $port);

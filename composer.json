@@ -15,11 +15,13 @@
     "minimum-stability": "stable",
     "require": {
         "php": ">=5.4.0",
+        "cboden/ratchet": "0.3.*",
         "yiisoft/yii2": "~2.0.14",
         "yiisoft/yii2-bootstrap": "~2.0.0",
         "yiisoft/yii2-swiftmailer": "~2.0.0",
         "pmill/php-chat": "^0.2.0"
     },
+
     "require-dev": {
         "yiisoft/yii2-debug": "~2.0.0",
         "yiisoft/yii2-gii": "~2.0.0",
