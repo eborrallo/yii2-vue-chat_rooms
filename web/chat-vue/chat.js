@@ -3,6 +3,7 @@
  */
 const URL = "https://jsonplaceholder.typicode.com/todos/1";
 var chatUrl = 'ws://localhost:9911';
+var name = randomString(5);
 var conn;
 
 var data = [
@@ -41,21 +42,23 @@ Vue.component('chat-vue', {
             if (this.message != null && this.message != '') {
                 var d = new Date();
                 var params = {
+                    'roomId': 1,
                     'message': this.message,
                     'action': 'message',
                     'timestamp': d.getTime() / 1000
                 };
-                sendChatMessage(params);
-                this.results.push({message: this.message});
+                this.conn.send(JSON.stringify(params), function (error) {
+                    // Do something in here here to clean things up (or don't do anything at all)
+                    console.log(error)
+                });
                 this.message = '';
-                // this.autoScrollDown();
-
             }
             return true
         },
 
+
     },
-    template: '  <div id="vue-chat">' +
+    template: '<div id="vue-chat">' +
     ' <div class="panel-body">' +
     '<chat-vue-content :results=results ></chat-vue-content>' +
     '</div>' +
@@ -83,12 +86,17 @@ Vue.component('chat-vue-content', {
     '<img src="http://placehold.it/50/55C1E7/fff&amp;text=U" alt="User Avatar" class="img-circle">' +
     '</span>' +
     '<div class="chat-body clearfix">' +
-    '<div class="header">' +
-    '<strong class="primary-font">Jack Sparrow</strong>' +
-    '<small  :class="{\'pull-right\':result.owner ,\'pull-left\':!result.owner }" class=" text-muted">' +
-    '<span class="glyphicon glyphicon-time"></span>12 mins ago' +
-    '</small>' +
+
+    '<div v-if="result.owner" class="header">' +
+    '<small class=" text-muted"><span class="glyphicon glyphicon-time"></span>15 mins ago</small>' +
+    '<strong class="pull-right primary-font">Bhaumik Patel</strong>' +
     '</div>' +
+
+    '<div v-if="!result.owner" class="header">' +
+    '<strong class="primary-font">Jack Sparrow</strong>' +
+    '<small class="pull-right text-muted"><span class="glyphicon glyphicon-time"></span>14 mins ago</small>'+
+    '</div>' +
+        
     '<p>' +
     '{{result.message}}' +
     '</p>' +
@@ -109,7 +117,7 @@ const vm = new Vue({
     template: ' <chat-vue :results=results :conn=conn ></chat-vue>',
     mounted () {
         this.connectToChat();
-        // this.results = data;
+        this.results = data;
         // $(this.$refs.vuemodal).on("hidden.bs.modal", this.doSomethingOnHidden)
         // $(this.$refs.vuemodal).on("show.bs.modal", this.doSomethingOnShow)
 
@@ -126,7 +134,60 @@ const vm = new Vue({
             }, 3000);
         },
         connectToChat() {
-            connectToChat();
+            var conn = new WebSocket(chatUrl);
+
+            conn.onopen = function () {
+                var params = {
+                    'roomId': 1,
+                    'userName': name,
+                    'action': 'connect'
+                };
+                console.log(params);
+                conn.send(JSON.stringify(params));
+            };
+
+            conn.onmessage = e => {
+                console.log(e);
+                var data = JSON.parse(e.data);
+
+
+                if (data.hasOwnProperty('message') && data.hasOwnProperty('from')) {
+                    // displayChatMessage(data.from.name, data.message);
+                    if (data.from.name === name) {
+                        this.results.push({from: data.from.name, message: data.message, owner: false})
+                    } else {
+                        this.results.push({from: data.from.name, message: data.message, owner: true})
+                    }
+                    this.autoScrollDown();
+                }
+                else if (data.hasOwnProperty('message')) {
+                    // displayChatMessage(null, data.message);
+                }
+                else if (data.hasOwnProperty('type')) {
+                    if (data.type == 'list-users' && data.hasOwnProperty('clients')) {
+                        // displayChatMessage(null, 'There are ' + data.clients.length + ' users connected');
+                    }
+                    else if (data.type == 'user-started-typing') {
+                        // displayUserTypingMessage(data.from)
+                    }
+                    else if (data.type == 'user-stopped-typing') {
+                        // removeUserTypingMessage(data.from);
+                    }
+                }
+            };
+
+            conn.onerror = function (e) {
+                console.log(e);
+            };
+            conn.onclose = function (e) {
+                console.log(e);
+            }
+            this.conn = conn;
+            return true;
+        },
+        autoScrollDown() {
+            const panel = $(".panel-body");
+            panel.stop().animate({scrollTop: panel[0].scrollHeight}, 1000);
         }
     }
 });
@@ -170,70 +231,6 @@ function removeUserTypingMessage(from) {
     }
 }
 
-function connectToChat() {
-    conn = new WebSocket(chatUrl);
-
-    conn.onopen = function () {
-
-
-        var params = {
-            'roomId': "1",
-            'userName':"kike",
-            'action': 'connect'
-        };
-        console.log(params);
-        conn.send(JSON.stringify(params));
-    };
-
-    conn.onmessage = function (e) {
-        console.log(e);
-        var data = JSON.parse(e.data);
-
-        if (data.hasOwnProperty('message') && data.hasOwnProperty('from')) {
-            // displayChatMessage(data.from.name, data.message);
-        }
-        else if (data.hasOwnProperty('message')) {
-            // displayChatMessage(null, data.message);
-        }
-        else if (data.hasOwnProperty('type')) {
-            if (data.type == 'list-users' && data.hasOwnProperty('clients')) {
-                // displayChatMessage(null, 'There are ' + data.clients.length + ' users connected');
-            }
-            else if (data.type == 'user-started-typing') {
-                // displayUserTypingMessage(data.from)
-            }
-            else if (data.type == 'user-stopped-typing') {
-                // removeUserTypingMessage(data.from);
-            }
-        }
-    };
-
-    conn.onerror = function (e) {
-        console.log(e);
-    };
-    conn.onclose = function (e) {
-        console.log(e);
-    }
-
-    return true;
-}
-
-function sendChatMessage(params) {
-    // var d = new Date();
-    // var params = {
-    //     'message': document.getElementsByName("message")[0].value,
-    //     'action': 'message',
-    //     'timestamp': d.getTime() / 1000
-    // };
-    conn.send(JSON.stringify(params), function (error) {
-        // Do something in here here to clean things up (or don't do anything at all)
-        console.log(error)
-    });
-    // autoScrollDown();
-    // document.getElementsByName("message")[0].value = '';
-    return false;
-}
-
 function updateChatTyping() {
     var params = {};
 
@@ -247,7 +244,3 @@ function updateChatTyping() {
     }
 }
 
-function autoScrollDown() {
-    const panel = $(".panel-body");
-    panel.stop().animate({scrollTop: panel[0].scrollHeight}, 1000);
-}
